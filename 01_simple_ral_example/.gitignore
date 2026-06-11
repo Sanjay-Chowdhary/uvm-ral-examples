@@ -1,0 +1,17 @@
+# Simulation outputs
+*.log
+*.vcd
+*.wdb
+*.shm
+csim.ddir/
+work/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+*.o
