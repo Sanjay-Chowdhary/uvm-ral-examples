@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+    
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+    
+    triggers {
+        pollSCM('H/30 * * * *')
+        githubPush()
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '=== Checking out code ==='
+                checkout scm
+            }
+        }
+        
+        stage('Setup') {
+            steps {
+                echo '=== Setting up environment ==='
+                sh 'bash ci/jenkins_setup.sh'
+            }
+        }
+        
+        stage('Compile') {
+            steps {
+                echo '=== Compiling ==='
+                sh 'cd 03_uvm_regression && bash compile.sh'
+            }
+        }
+        
+        stage('Regression') {
+            steps {
+                echo '=== Running regression suite ==='
+                sh 'cd 03_uvm_regression && bash regression/run_regression.sh'
+            }
+        }
+        
+        stage('Analysis') {
+            steps {
+                echo '=== Analyzing results ==='
+                sh 'cd 03_uvm_regression && python3 regression/compare.py'
+                sh 'cd 03_uvm_regression && python3 regression/dashboard.py'
+            }
+        }
+        
+        stage('Report') {
+            steps {
+                echo '=== Publishing report ==='
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: '03_uvm_regression/results/reports',
+                    reportFiles: 'results.json',
+                    reportName: 'Regression Report'
+                ])
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '=== Archiving artifacts ==='
+            archiveArtifacts artifacts: '03_uvm_regression/results/**/*.log,03_uvm_regression/results/**/*.json', allowEmptyArchive: true
+            archiveArtifacts artifacts: '03_uvm_regression/sim.vcd', allowEmptyArchive: true
+        }
+        
+        failure {
+            echo '=== Test FAILED ==='
+            sh 'cd 03_uvm_regression && python3 ci/slack_notify.py --status failed'
+        }
+        
+        success {
+            echo '=== Test PASSED ==='
+            sh 'cd 03_uvm_regression && python3 ci/slack_notify.py --status success'
+        }
+    }
+}

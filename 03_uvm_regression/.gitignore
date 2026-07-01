@@ -1,0 +1,16 @@
+.gitignore
+*.vvp
+*.vcd
+*.log
+sim.vvp
+work/
+results/current/
+results/logs/
+results/reports/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+__pycache__/
+*.pyc
